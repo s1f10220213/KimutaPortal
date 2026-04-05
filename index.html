@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>きむたポータル</title>
+    <style>
+        /* 全体のスタイル */
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        /* ヘッダーのスタイル */
+        header {
+            background-color: #2c3e50;
+            color: #ffffff;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+            letter-spacing: 2px;
+        }
+        header p {
+            margin: 10px 0 0;
+            font-size: 1rem;
+            color: #bdc3c7;
+        }
+
+        /* メインコンテンツのコンテナ */
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        /* カードを並べるグリッドレイアウト */
+        .card-grid {
+            display: grid;
+            /* 画面幅に合わせてカードの列数を自動調整（最小幅300px） */
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        /* カード本体のスタイル */
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+
+        /* サムネイル画像 */
+        .card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover; /* 画像の縦横比を維持しつつ枠を埋める */
+            background-color: #e0e0e0;
+            display: block;
+        }
+
+        /* カード内のテキストエリア */
+        .card-content {
+            padding: 20px;
+        }
+
+        /* タイトルとリンク */
+        .card-title {
+            margin: 0 0 10px;
+            font-size: 1.25rem;
+        }
+        .card-title a {
+            text-decoration: none;
+            color: #2980b9;
+            transition: color 0.2s;
+        }
+        .card-title a:hover {
+            color: #3498db;
+            text-decoration: underline;
+        }
+
+        /* 概要テキスト */
+        .card-desc {
+            margin: 0;
+            color: #666;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>きむたポータル</h1>
+        <p>作成したHTML作品・プロジェクト一覧</p>
+    </header>
+
+    <main class="container">
+        <div class="card-grid">
+
+            <div class="card">
+                <img src="https://via.placeholder.com/600x360/3498db/ffffff?text=WebGL+Project" alt="WebGL作品のサムネイル">
+                <div class="card-content">
+                    <h2 class="card-title"><a href="webgl-game.html" target="_blank">WebGLミニゲーム</a></h2>
+                    <p class="card-desc">UnityからWebGLで出力した3Dアクションゲームです。操作感とカメラワークの調整を行いました。</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <img src="https://via.placeholder.com/600x360/e74c3c/ffffff?text=VR+Research" alt="VR実験のサムネイル">
+                <div class="card-content">
+                    <h2 class="card-title"><a href="vr-experiment.html" target="_blank">VR腕延長手法の検証</a></h2>
+                    <p class="card-desc">HCIにおける新しいインタラクション手法（GAINSメソッド等）の検証用プロトタイプ画面です。</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <img src="https://via.placeholder.com/600x360/2ecc71/ffffff?text=Storybook" alt="絵本のサムネイル">
+                <div class="card-content">
+                    <h2 class="card-title"><a href="akito-story.html" target="_blank">Web絵本：アキトの生活</a></h2>
+                    <p class="card-desc">一人暮らしを始めた大学生の日常を描いたインタラクティブなWeb絵本です。</p>
+                </div>
+            </div>
+
+            </div>
+    </main>
+
+</body>
+</html>
