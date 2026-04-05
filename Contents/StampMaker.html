@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discordスタンプジェネレーター v2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=DotGothic16&family=Mochiy+Pop+One&family=Noto+Sans+JP:wght@900&family=Rampart+One&family=Reggae+One&family=Shippori+Mincho+B1:wght@800&family=Yuji+Syuku&family=Zen+Maru+Gothic:wght@900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f3f4f6; }
+        canvas { background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2N89uzZfwY8QFJSEp80A+OoAcMhYEDKg78w4A+jGRhwWjCqgQEPGP///w8A+IwZ+DsZN14AAAAASUVORK5CYII='); }
+        /* プルダウン内のフォント適用 */
+        .font-preview-noto { font-family: 'Noto Sans JP', sans-serif; }
+        .font-preview-mochiy { font-family: 'Mochiy Pop One', sans-serif; }
+        .font-preview-zen { font-family: 'Zen Maru Gothic', sans-serif; }
+        .font-preview-rampart { font-family: 'Rampart One', cursive; }
+        .font-preview-dela { font-family: 'Dela Gothic One', cursive; }
+        .font-preview-reggae { font-family: 'Reggae One', cursive; }
+        .font-preview-dot { font-family: 'DotGothic16', sans-serif; }
+        .font-preview-shippori { font-family: 'Shippori Mincho B1', serif; }
+        .font-preview-yuji { font-family: 'Yuji Syuku', serif; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="bg-white p-6 rounded-xl shadow-lg space-y-5">
+        <h1 class="text-2xl font-bold text-gray-800 border-b pb-2">Discordスタンプ作成機 v2</h1>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-700">テキスト (改行可)</label>
+            <textarea id="textInput" rows="2" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-lg" placeholder="文字を入力">承認&#13;完了</textarea>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">フォント</label>
+            <select id="fontSelect" class="mt-1 block w-full pl-3 pr-10 py-2 text-lg border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
+                <option value="'Noto Sans JP', sans-serif" class="font-preview-noto">ゴシック (Noto Sans)</option>
+                <option value="'Mochiy Pop One', sans-serif" class="font-preview-mochiy">ポップ (Mochiy Pop)</option>
+                <option value="'Zen Maru Gothic', sans-serif" class="font-preview-zen">丸ゴシック (Zen Maru)</option>
+                <option value="'Rampart One', cursive" class="font-preview-rampart">極太シャドウ (Rampart)</option>
+                <option value="'Dela Gothic One', cursive" class="font-preview-dela" selected>ド迫力・極太 (Dela Gothic)</option>
+                <option value="'Reggae One', cursive" class="font-preview-reggae">少年漫画・叫び (Reggae One)</option>
+                <option value="'DotGothic16', sans-serif" class="font-preview-dot">ドット絵 (DotGothic16)</option>
+                <option value="'Shippori Mincho B1', serif" class="font-preview-shippori">真面目・明朝 (Shippori)</option>
+                <option value="'Yuji Syuku', serif" class="font-preview-yuji">ホラー・怨念 (Yuji Syuku)</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">塗りつぶし効果</label>
+            <select id="effectSelect" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
+                <option value="solid">単色</option>
+                <option value="gradient">グラデーション (上→下)</option>
+                <option value="split">上下分割 (ツートン)</option>
+                <option value="stripe">ストライプ (斜め)</option>
+                <option value="dot">水玉 (ドット)</option>
+                <option value="rainbow">ホログラム (虹色)</option>
+                <option value="metal">メタリック</option>
+                <option value="texture">画像テクスチャ貼り付け</option>
+            </select>
+        </div>
+
+        <div id="textureContainer" class="hidden p-3 bg-gray-50 rounded border border-dashed border-gray-400">
+            <label class="block text-sm font-medium text-gray-700 mb-1">テクスチャ画像を選択</label>
+            <input type="file" id="textureInput" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">メイン色 (色1)</label>
+                <input type="color" id="color1" value="#ff0055" class="h-10 w-full cursor-pointer rounded border border-gray-300">
+            </div>
+            <div id="color2Container" class="hidden">
+                <label class="block text-sm font-medium text-gray-700">サブ色 (色2)</label>
+                <input type="color" id="color2" value="#00ccff" class="h-10 w-full cursor-pointer rounded border border-gray-300">
+            </div>
+        </div>
+
+        <hr class="border-gray-200">
+
+        <div>
+            <div class="flex items-center space-x-2 mb-2">
+                <input type="checkbox" id="doubleStroke" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="doubleStroke" class="text-sm font-bold text-gray-800">二重縁取りにする</label>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">縁取り色 (内)</label>
+                    <input type="color" id="strokeColor" value="#ffffff" class="h-10 w-full cursor-pointer rounded border border-gray-300">
+                </div>
+                <div id="outerStrokeContainer" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700">縁取り色 (外)</label>
+                    <input type="color" id="strokeColorOuter" value="#000000" class="h-10 w-full cursor-pointer rounded border border-gray-300">
+                </div>
+            </div>
+            
+            <div class="mt-2">
+                <label class="block text-sm font-medium text-gray-700">縁取りの太さ: <span id="strokeVal">20</span></label>
+                <input type="range" id="strokeWidth" min="0" max="60" value="20" class="w-full">
+            </div>
+        </div>
+
+        <hr class="border-gray-200">
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">文字サイズ: <span id="sizeVal">180</span>px</label>
+                <input type="range" id="fontSize" min="50" max="400" value="180" class="w-full">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">行間: <span id="lineHeightVal">1.2</span></label>
+                <input type="range" id="lineHeight" min="0.8" max="2.0" step="0.1" value="1.2" class="w-full">
+            </div>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-700">上下位置 (Y): <span id="yVal">0</span></label>
+            <input type="range" id="offsetY" min="-250" max="250" value="0" class="w-full">
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <input type="checkbox" id="addShadow" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+            <label for="addShadow" class="text-sm font-medium text-gray-700">ドロップシャドウを付ける</label>
+        </div>
+
+        <button id="downloadBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded shadow transition duration-150">
+            画像として保存 (512x512)
+        </button>
+    </div>
+
+    <div class="flex flex-col items-center justify-start bg-gray-200 rounded-xl p-6 sticky top-4">
+        <h2 class="text-lg font-bold text-gray-500 mb-4">プレビュー (512x512px)</h2>
+        <canvas id="canvas" width="512" height="512" class="bg-white shadow-2xl rounded-lg border border-gray-300 w-full max-w-[400px] h-auto"></canvas>
+        <p class="text-xs text-gray-500 mt-4 text-center">
+            ※クリックして拡大表示可能<br>
+            ※テクスチャ画像の読み込みには数秒かかる場合があります
+        </p>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // アップロードされたテクスチャ画像保持用
+    let uploadedTextureImg = null;
+
+    // UI要素の取得
+    const el = {
+        text: document.getElementById('textInput'),
+        font: document.getElementById('fontSelect'),
+        effect: document.getElementById('effectSelect'),
+        textureInput: document.getElementById('textureInput'),
+        textureContainer: document.getElementById('textureContainer'),
+        color1: document.getElementById('color1'),
+        color2: document.getElementById('color2'),
+        color2Container: document.getElementById('color2Container'),
+        strokeColor: document.getElementById('strokeColor'),
+        strokeColorOuter: document.getElementById('strokeColorOuter'),
+        doubleStroke: document.getElementById('doubleStroke'),
+        outerStrokeContainer: document.getElementById('outerStrokeContainer'),
+        strokeWidth: document.getElementById('strokeWidth'),
+        fontSize: document.getElementById('fontSize'),
+        lineHeight: document.getElementById('lineHeight'),
+        offsetY: document.getElementById('offsetY'),
+        addShadow: document.getElementById('addShadow'),
+        // 数値表示用
+        strokeVal: document.getElementById('strokeVal'),
+        sizeVal: document.getElementById('sizeVal'),
+        yVal: document.getElementById('yVal'),
+        lineHeightVal: document.getElementById('lineHeightVal'),
+        downloadBtn: document.getElementById('downloadBtn')
+    };
+
+    // パターン生成ヘルパー関数
+    function createStripePattern(c1, c2) {
+        const pCanvas = document.createElement('canvas');
+        pCanvas.width = 40;
+        pCanvas.height = 40;
+        const pCtx = pCanvas.getContext('2d');
+        pCtx.fillStyle = c1;
+        pCtx.fillRect(0, 0, 40, 40);
+        pCtx.strokeStyle = c2;
+        pCtx.lineWidth = 10;
+        pCtx.beginPath();
+        pCtx.moveTo(-10, 10); pCtx.lineTo(10, -10); // 左上
+        pCtx.moveTo(10, 50); pCtx.lineTo(50, 10);   // メイン
+        pCtx.moveTo(30, 50); pCtx.lineTo(50, 30);   // 右下
+        pCtx.stroke();
+        return ctx.createPattern(pCanvas, 'repeat');
+    }
+
+    function createDotPattern(c1, c2) {
+        const pCanvas = document.createElement('canvas');
+        pCanvas.width = 30;
+        pCanvas.height = 30;
+        const pCtx = pCanvas.getContext('2d');
+        pCtx.fillStyle = c1;
+        pCtx.fillRect(0, 0, 30, 30);
+        pCtx.fillStyle = c2;
+        pCtx.beginPath();
+        pCtx.arc(15, 15, 8, 0, Math.PI * 2);
+        pCtx.fill();
+        return ctx.createPattern(pCanvas, 'repeat');
+    }
+
+    // 描画メイン関数
+    function draw() {
+        // キャンバスクリア
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 値の取得
+        const textRaw = el.text.value;
+        const lines = textRaw.split('\n'); // 改行で分割
+        const fontSize = parseInt(el.fontSize.value);
+        const lineHeightScale = parseFloat(el.lineHeight.value);
+        const yOffset = parseInt(el.offsetY.value);
+        const strokeW = parseInt(el.strokeWidth.value);
+        const isDoubleStroke = el.doubleStroke.checked;
+
+        // 数値表示更新
+        el.strokeVal.innerText = strokeW;
+        el.sizeVal.innerText = fontSize;
+        el.yVal.innerText = yOffset;
+        el.lineHeightVal.innerText = lineHeightScale;
+
+        // UI制御（色の表示・非表示）
+        const effect = el.effect.value;
+        const useColor2 = ['gradient', 'split', 'stripe', 'dot'].includes(effect);
+        el.color2Container.classList.toggle('hidden', !useColor2);
+        
+        el.outerStrokeContainer.classList.toggle('hidden', !isDoubleStroke);
+        el.textureContainer.classList.toggle('hidden', effect !== 'texture');
+
+        // フォント設定
+        ctx.font = `bold ${fontSize}px ${el.font.value}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+
+        const centerX = canvas.width / 2;
+        const centerY = (canvas.height / 2) + yOffset;
+        
+        // 複数行の全体の高さを計算して垂直中央寄せ
+        const lineHeightPx = fontSize * lineHeightScale;
+        const totalHeight = lineHeightPx * lines.length;
+        const startY = centerY - (totalHeight / 2) + (lineHeightPx / 2);
+
+        // 共通設定: 影
+        if (el.addShadow.checked) {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+            ctx.shadowBlur = 20;
+            ctx.shadowOffsetX = 8;
+            ctx.shadowOffsetY = 8;
+        } else {
+            ctx.shadowColor = 'transparent';
+        }
+
+        // --- 描画パス作成 ---
+        // 1. 二重縁取りの外側 (影もここに適用される)
+        if (strokeW > 0 && isDoubleStroke) {
+            ctx.strokeStyle = el.strokeColorOuter.value;
+            ctx.lineWidth = strokeW + 24; // 内側より太くする
+            lines.forEach((line, i) => {
+                ctx.strokeText(line, centerX, startY + (i * lineHeightPx));
+            });
+            // 影は外側ストロークに一度適用したらオフにする（重ねがけ防止）
+            ctx.shadowColor = 'transparent'; 
+        }
+
+        // 2. メインの縁取り
+        if (strokeW > 0) {
+            ctx.strokeStyle = el.strokeColor.value;
+            ctx.lineWidth = strokeW;
+            lines.forEach((line, i) => {
+                ctx.strokeText(line, centerX, startY + (i * lineHeightPx));
+            });
+            ctx.shadowColor = 'transparent'; // 念のため
+        }
+
+        // 3. 塗りつぶし (Fill)
+        let fillStyle;
+        const c1 = el.color1.value;
+        const c2 = el.color2.value;
+
+        // 塗りスタイル生成
+        switch(effect) {
+            case 'solid':
+                fillStyle = c1;
+                break;
+            case 'gradient':
+                // テキストブロック全体にかかるグラデーション
+                const grad = ctx.createLinearGradient(centerX, startY - lineHeightPx/2, centerX, startY + totalHeight - lineHeightPx/2);
+                grad.addColorStop(0, c1);
+                grad.addColorStop(1, c2);
+                fillStyle = grad;
+                break;
+            case 'split':
+                // 真ん中でパキッと分かれる
+                const split = ctx.createLinearGradient(centerX, startY - lineHeightPx/2, centerX, startY + totalHeight - lineHeightPx/2);
+                split.addColorStop(0.5, c1);
+                split.addColorStop(0.5, c2);
+                fillStyle = split;
+                break;
+            case 'stripe':
+                fillStyle = createStripePattern(c1, c2);
+                break;
+            case 'dot':
+                fillStyle = createDotPattern(c1, c2);
+                break;
+            case 'rainbow':
+                const rainbow = ctx.createLinearGradient(0, 0, canvas.width, 0);
+                rainbow.addColorStop(0, 'red');
+                rainbow.addColorStop(0.2, 'orange');
+                rainbow.addColorStop(0.4, 'yellow');
+                rainbow.addColorStop(0.6, 'green');
+                rainbow.addColorStop(0.8, 'blue');
+                rainbow.addColorStop(1, 'violet');
+                fillStyle = rainbow;
+                break;
+            case 'metal':
+                const metal = ctx.createLinearGradient(centerX, centerY - totalHeight/2, centerX, centerY + totalHeight/2);
+                metal.addColorStop(0, '#a0a0a0');
+                metal.addColorStop(0.2, '#f0f0f0');
+                metal.addColorStop(0.5, '#808080');
+                metal.addColorStop(0.8, '#d0d0d0');
+                metal.addColorStop(1, '#909090');
+                fillStyle = metal;
+                break;
+            case 'texture':
+                if (uploadedTextureImg) {
+                    // 画像のサイズ調整（パターンとして繰り返し、またはフィット）
+                    // ここではパターン繰り返しを使用
+                    const pattern = ctx.createPattern(uploadedTextureImg, 'repeat');
+                    fillStyle = pattern;
+                } else {
+                    fillStyle = '#888888'; // 画像未設定時はグレー
+                }
+                break;
+        }
+
+        ctx.fillStyle = fillStyle;
+        lines.forEach((line, i) => {
+            ctx.fillText(line, centerX, startY + (i * lineHeightPx));
+        });
+    }
+
+    // テクスチャ画像読み込み処理
+    el.textureInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    uploadedTextureImg = img;
+                    draw();
+                };
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // イベントリスナー一括登録
+    Object.keys(el).forEach(key => {
+        if (['downloadBtn', 'strokeVal', 'sizeVal', 'yVal', 'lineHeightVal', 'textureInput', 'textureContainer', 'outerStrokeContainer', 'color2Container'].indexOf(key) === -1) {
+            const element = el[key];
+            if(element) {
+                element.addEventListener('input', draw);
+                element.addEventListener('change', draw);
+            }
+        }
+    });
+
+    // フォント読み込み完了待ち
+    document.fonts.ready.then(() => {
+        draw();
+    });
+
+    // 初期描画
+    draw();
+
+    // ダウンロード
+    el.downloadBtn.addEventListener('click', () => {
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        link.download = `stamp_${timestamp}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+</script>
+
+</body>
+</html>

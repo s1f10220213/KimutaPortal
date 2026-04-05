@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像つなげる君 V2</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --border-color: #ddd;
+            --drag-bg: #e3f2fd;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        /* コントロールパネル */
+        .controls {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="number"], input[type="color"], select {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: opacity 0.2s;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-file {
+            background-color: #2c3e50;
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .btn-file input[type=file] {
+            position: absolute;
+            top: 0;
+            right: 0;
+            min-width: 100%;
+            min-height: 100%;
+            font-size: 100px;
+            text-align: right;
+            filter: alpha(opacity=0);
+            opacity: 0;
+            outline: none;
+            background: white;
+            cursor: inherit;
+            display: block;
+        }
+
+        /* 画像リストエリア */
+        #imageList {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .image-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: grab; /* ドラッグ可能アイコン */
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+        
+        .image-item:active {
+            cursor: grabbing;
+        }
+
+        .image-item.dragging {
+            opacity: 0.5;
+            border: 2px dashed var(--primary-color);
+            background-color: var(--drag-bg);
+        }
+
+        .image-item img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #eee;
+            pointer-events: none; /* 画像自体のドラッグを防止 */
+        }
+
+        .file-info {
+            flex-grow: 1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .file-name {
+            font-size: 0.9em;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-meta {
+            font-size: 0.75em;
+            color: #666;
+        }
+
+        .btn-remove {
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* プレビューエリア */
+        #previewArea {
+            text-align: center;
+            margin-top: 30px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+            border: 1px solid var(--border-color);
+        }
+
+        #previewArea img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%, #eee), 
+            linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%, #eee);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+        }
+        
+        #downloadLink {
+            display: inline-block;
+            margin-top: 15px;
+            text-decoration: none;
+            background-color: #27ae60;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 4px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .instruction {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>画像つなげる君 V2</h1>
+    <p class="instruction">画像を追加後、ドラッグ＆ドロップで順番を入れ替えられます</p>
+
+    <div class="controls">
+        <div class="control-group">
+            <div class="btn btn-file">
+                画像を追加
+                <input type="file" id="fileInput" multiple accept="image/*">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="layoutMode">並べ方</label>
+            <select id="layoutMode">
+                <option value="vertical">縦につなぐ</option>
+                <option value="horizontal">横につなぐ</option>
+                <option value="grid">グリッド(行列)</option>
+            </select>
+        </div>
+
+        <div class="control-group" id="colInputGroup" style="display:none;">
+            <label for="columnCount">列数 (横の枚数)</label>
+            <input type="number" id="columnCount" value="2" min="1">
+        </div>
+
+        <div class="control-group">
+            <label for="outputWidth">全体の幅 (px)</label>
+            <input type="number" id="outputWidth" value="800" min="100" step="10">
+        </div>
+
+        <div class="control-group">
+            <label for="paddingSize">マージン (px)</label>
+            <input type="number" id="paddingSize" value="10" min="0">
+        </div>
+
+        <div class="control-group">
+            <label for="bgColor">背景色</label>
+            <input type="color" id="bgColor" value="#ffffff">
+        </div>
+
+        <div class="control-group">
+            <button class="btn" id="generateBtn">結合する！</button>
+        </div>
+    </div>
+
+    <ul id="imageList">
+        </ul>
+
+    <div id="previewArea">
+        <h2>完成画像</h2>
+        <div id="canvasContainer"></div>
+        <a id="downloadLink" href="#" download="merged-image.png">画像をダウンロード</a>
+    </div>
+
+    <script>
+        // 状態管理
+        let imagesData = []; // { file, imgObj, id }
+
+        const fileInput = document.getElementById('fileInput');
+        const imageList = document.getElementById('imageList');
+        const generateBtn = document.getElementById('generateBtn');
+        const previewArea = document.getElementById('previewArea');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const downloadLink = document.getElementById('downloadLink');
+        const layoutMode = document.getElementById('layoutMode');
+        const colInputGroup = document.getElementById('colInputGroup');
+
+        // レイアウト変更時のUI制御
+        layoutMode.addEventListener('change', (e) => {
+            if (e.target.value === 'grid') {
+                colInputGroup.style.display = 'flex';
+            } else {
+                colInputGroup.style.display = 'none';
+            }
+        });
+
+        // ファイル選択時
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            const promises = files.map(file => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            resolve({
+                                file: file,
+                                imgObj: img,
+                                id: Date.now() + Math.random().toString()
+                            });
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            const newImages = await Promise.all(promises);
+            imagesData = [...imagesData, ...newImages];
+            renderList();
+            fileInput.value = '';
+        });
+
+        // リスト描画（ドラッグ＆ドロップ対応）
+        function renderList() {
+            imageList.innerHTML = '';
+            if (imagesData.length === 0) {
+                imageList.style.display = 'block';
+                imageList.innerHTML = '<li style="text-align:center; color:#888; padding:20px;">画像がありません。<br>上のボタンから追加してください。</li>';
+                return;
+            }
+            imageList.style.display = 'grid';
+
+            imagesData.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'image-item';
+                li.draggable = true;
+                li.dataset.index = index;
+                
+                li.innerHTML = `
+                    <img src="${item.imgObj.src}" alt="thumbnail">
+                    <div class="file-info">
+                        <div class="file-name">${item.file.name}</div>
+                        <div class="file-meta">${item.imgObj.naturalWidth} x ${item.imgObj.naturalHeight}</div>
+                    </div>
+                    <button class="btn-remove" onclick="removeItem(${index})">×</button>
+                `;
+
+                // ドラッグイベントの設定
+                addDragEvents(li);
+
+                imageList.appendChild(li);
+            });
+        }
+
+        // ドラッグ＆ドロップのイベントハンドラ
+        let dragStartIndex;
+
+        function addDragEvents(li) {
+            li.addEventListener('dragstart', (e) => {
+                dragStartIndex = +li.dataset.index;
+                li.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            li.addEventListener('dragover', (e) => {
+                e.preventDefault(); // ドロップを許可するために必須
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            li.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const dragEndIndex = +li.dataset.index;
+                swapItems(dragStartIndex, dragEndIndex);
+                li.classList.remove('dragging');
+            });
+
+            li.addEventListener('dragend', () => {
+                li.classList.remove('dragging');
+                // 全アイテムからクラス削除（念のため）
+                document.querySelectorAll('.image-item').forEach(item => item.classList.remove('dragging'));
+            });
+            
+            // スマホでのタッチ操作は複雑になるため今回はPC/マウスベースのD&Dを実装
+        }
+
+        function swapItems(fromIndex, toIndex) {
+            if (fromIndex === toIndex) return;
+            const itemToMove = imagesData[fromIndex];
+            imagesData.splice(fromIndex, 1);
+            imagesData.splice(toIndex, 0, itemToMove);
+            renderList();
+        }
+
+        window.removeItem = (index) => {
+            imagesData.splice(index, 1);
+            renderList();
+        };
+
+        // 画像生成処理（メインロジック）
+        generateBtn.addEventListener('click', () => {
+            if (imagesData.length === 0) {
+                alert('画像を追加してください');
+                return;
+            }
+
+            const outputWidth = parseInt(document.getElementById('outputWidth').value) || 800;
+            const padding = parseInt(document.getElementById('paddingSize').value) || 0;
+            const bgColor = document.getElementById('bgColor').value;
+            const mode = document.getElementById('layoutMode').value;
+            
+            // 列数の決定
+            let cols = 1;
+            if (mode === 'vertical') {
+                cols = 1;
+            } else if (mode === 'horizontal') {
+                cols = imagesData.length;
+            } else {
+                cols = parseInt(document.getElementById('columnCount').value) || 2;
+                if (cols < 1) cols = 1;
+            }
+
+            // 1カラムあたりの幅を計算 (全体幅 - 隙間の合計) / 列数
+            // 隙間は (列数 - 1) 箇所に入る
+            const totalPaddingX = (cols > 0 ? cols - 1 : 0) * padding;
+            const cellWidth = (outputWidth - totalPaddingX) / cols;
+
+            if (cellWidth <= 0) {
+                alert('列数が多すぎるか、幅が狭すぎます。');
+                return;
+            }
+
+            // 各画像の配置座標と、全体の高さを計算するためのシミュレーション
+            let currentX = 0;
+            let currentY = 0;
+            let rowMaxHeight = 0;
+            let totalHeight = 0;
+            
+            const layoutMap = []; // { img, x, y, width, height }
+
+            imagesData.forEach((item, index) => {
+                // アスペクト比を維持して高さを計算
+                const scale = cellWidth / item.imgObj.naturalWidth;
+                const scaledHeight = item.imgObj.naturalHeight * scale;
+
+                // 現在の列番号 (0始まり)
+                const colIndex = index % cols;
+
+                // 新しい行の始まりか？
+                if (colIndex === 0 && index !== 0) {
+                    currentX = 0;
+                    currentY += rowMaxHeight + padding;
+                    rowMaxHeight = 0; // 新しい行のためにリセット
+                }
+
+                // マップに保存
+                layoutMap.push({
+                    img: item.imgObj,
+                    x: currentX,
+                    y: currentY,
+                    w: cellWidth,
+                    h: scaledHeight
+                });
+
+                // 次のアイテムのためにX座標を進める
+                currentX += cellWidth + padding;
+
+                // 行内での最大高さを更新
+                if (scaledHeight > rowMaxHeight) {
+                    rowMaxHeight = scaledHeight;
+                }
+            });
+
+            // 最後の行の高さを加算して、全体の高さを確定
+            totalHeight = currentY + rowMaxHeight;
+
+            // Canvas作成
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = outputWidth;
+            canvas.height = totalHeight;
+
+            // 背景塗りつぶし
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 描画実行
+            layoutMap.forEach(pos => {
+                ctx.drawImage(pos.img, pos.x, pos.y, pos.w, pos.h);
+            });
+
+            // 出力
+            const resultImg = new Image();
+            resultImg.src = canvas.toDataURL('image/png');
+            
+            canvasContainer.innerHTML = '';
+            canvasContainer.appendChild(resultImg);
+            
+            downloadLink.href = resultImg.src;
+            previewArea.style.display = 'block';
+            previewArea.scrollIntoView({ behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

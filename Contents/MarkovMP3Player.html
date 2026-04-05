@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markov Audio Sequencer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background-color: #09090b;
+            color: #fafafa;
+            overflow: hidden;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+        .grid-bg {
+            background-image: radial-gradient(#27272a 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .node {
+            cursor: grab;
+            transition: stroke 0.2s;
+        }
+        .node.selected {
+            filter: drop-shadow(0 0 5px #3b82f6);
+        }
+        .node:active {
+            cursor: grabbing;
+        }
+        .edge-path {
+            fill: none;
+            stroke: #52525b;
+            stroke-width: 2;
+            marker-end: url(#arrowhead);
+        }
+        .edge-path.active {
+            stroke: #3b82f6;
+            stroke-width: 3;
+            marker-end: url(#arrowhead-active);
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .audio-list-item {
+            cursor: move;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <header class="border-b border-zinc-800 p-4 flex items-center justify-between bg-zinc-950 z-10">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold tracking-tighter flex items-center gap-2">
+                <i data-lucide="share-2" class="text-blue-500"></i> MARKOV AUDIO
+            </h1>
+            <div class="flex items-center gap-2 bg-zinc-900 rounded-md p-1 border border-zinc-800">
+                <button id="btn-play" class="hover:bg-zinc-800 p-2 rounded transition text-green-500" title="Start Markov Playback">
+                    <i data-lucide="play"></i>
+                </button>
+                <button id="btn-stop" class="hover:bg-zinc-800 p-2 rounded transition text-red-500" title="Stop">
+                    <i data-lucide="square"></i>
+                </button>
+            </div>
+            <div class="text-xs text-zinc-500 ml-4 hidden md:block" id="status-display">
+                Ready
+            </div>
+        </div>
+        <div class="flex items-center gap-4 text-xs">
+            <div class="flex items-center gap-2 border border-zinc-800 bg-zinc-900 rounded px-3 py-1.5">
+                <i data-lucide="search" class="w-3 h-3 text-zinc-500"></i>
+                <span id="zoom-level">100%</span>
+            </div>
+            <label class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer transition flex items-center gap-2 font-bold">
+                <i data-lucide="upload" class="w-4 h-4"></i> MP3 読み込み
+                <input type="file" id="file-input" multiple accept="audio/mpeg" class="hidden">
+            </label>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        <aside class="w-64 border-r border-zinc-800 bg-zinc-950 flex flex-col z-10">
+            <div class="p-3 border-b border-zinc-800 flex justify-between items-center">
+                <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-widest">Audio Assets</h2>
+                <i data-lucide="music" class="w-3 h-3 text-zinc-500"></i>
+            </div>
+            <div id="audio-list" class="flex-1 overflow-y-auto p-2 space-y-2">
+                <div draggable="true" data-type="start" class="audio-list-item p-3 rounded border border-dashed border-zinc-700 bg-zinc-900/50 hover:border-blue-500 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition">
+                            <i data-lucide="flag" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold">START NODE</div>
+                            <div class="text-[10px] text-zinc-500">Drop to set entry</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-3 border-t border-zinc-800 bg-zinc-900/30 text-[10px] text-zinc-500 leading-relaxed">
+                ダブルクリックで名前変更。ノード選択状態でDeleteキーで削除可能。
+            </div>
+        </aside>
+
+        <div class="flex-1 relative overflow-hidden bg-zinc-950" id="canvas-container">
+            <svg id="grid-svg" class="w-full h-full grid-bg touch-none">
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#52525b" />
+                    </marker>
+                    <marker id="arrowhead-active" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
+                    </marker>
+                </defs>
+                <g id="viewport-group">
+                    <g id="edges-layer"></g>
+                    <g id="nodes-layer"></g>
+                    <path id="temp-edge" class="stroke-blue-500 stroke-2 fill-none pointer-events-none hidden" d=""></path>
+                </g>
+            </svg>
+            <div class="absolute bottom-4 right-4 flex flex-col gap-2">
+                <button id="zoom-in" class="bg-zinc-900 border border-zinc-800 p-2 rounded hover:bg-zinc-800"><i data-lucide="plus"></i></button>
+                <button id="zoom-out" class="bg-zinc-900 border border-zinc-800 p-2 rounded hover:bg-zinc-800"><i data-lucide="minus"></i></button>
+                <button id="zoom-reset" class="bg-zinc-900 border border-zinc-800 p-2 rounded hover:bg-zinc-800"><i data-lucide="maximize"></i></button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        class AudioEngine {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.buffers = new Map();
+                this.isPlaying = false;
+                this.currentSource = null;
+            }
+
+            async decodeFile(file) {
+                const arrayBuffer = await file.arrayBuffer();
+                const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+                return this.trimSilence(audioBuffer);
+            }
+
+            trimSilence(buffer, threshold = 0.005) {
+                const samples = buffer.getChannelData(0);
+                let start = 0;
+                let end = samples.length - 1;
+                while (start < samples.length && Math.abs(samples[start]) < threshold) start++;
+                while (end > start && Math.abs(samples[end]) < threshold) end--;
+                const duration = end - start;
+                if (duration <= 0) return buffer;
+                const trimmed = this.ctx.createBuffer(buffer.numberOfChannels, duration, buffer.sampleRate);
+                for (let i = 0; i < buffer.numberOfChannels; i++) {
+                    trimmed.copyToChannel(buffer.getChannelData(i).subarray(start, end), i);
+                }
+                return trimmed;
+            }
+
+            async playBuffer(buffer, onEnd) {
+                if (this.ctx.state === 'suspended') await this.ctx.resume();
+                const source = this.ctx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(this.ctx.destination);
+                source.onended = () => { if (this.isPlaying) onEnd(); };
+                source.start();
+                this.currentSource = source;
+                return source;
+            }
+
+            stop() {
+                this.isPlaying = false;
+                if (this.currentSource) {
+                    this.currentSource.stop();
+                    this.currentSource = null;
+                }
+            }
+        }
+
+        const state = {
+            audioFiles: [],
+            nodes: [],
+            edges: [],
+            camera: { x: 0, y: 0, zoom: 1 },
+            selectedNodeId: null, // New
+            isDraggingCanvas: false,
+            dragTarget: null,
+            dragOffset: { x: 0, y: 0 },
+            linkingFrom: null,
+            isPlaying: false,
+            currentNodeId: null,
+        };
+
+        const engine = new AudioEngine();
+        const svg = document.getElementById('grid-svg');
+        const viewport = document.getElementById('viewport-group');
+        const nodesLayer = document.getElementById('nodes-layer');
+        const edgesLayer = document.getElementById('edges-layer');
+        const tempEdge = document.getElementById('temp-edge');
+
+        lucide.createIcons();
+
+        function updateStatus(text) { document.getElementById('status-display').textContent = text; }
+
+        function render() {
+            nodesLayer.innerHTML = '';
+            edgesLayer.innerHTML = '';
+
+            state.edges.forEach((edge, idx) => {
+                const from = state.nodes.find(n => n.id === edge.from);
+                const to = state.nodes.find(n => n.id === edge.to);
+                if (!from || !to) return;
+
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const isActive = state.isPlaying && state.currentNodeId === edge.from;
+                path.setAttribute("class", `edge-path ${isActive ? 'active' : ''}`);
+                
+                // Curve calculation for overlapping arrows
+                const hasReverse = state.edges.some(e => e.from === edge.to && e.to === edge.from);
+                let d;
+                if (from === to) {
+                    d = `M ${from.x+25} ${from.y-25} C ${from.x+80} ${from.y-80}, ${from.x-80} ${from.y-80}, ${from.x-25} ${from.y-25}`;
+                } else if (hasReverse) {
+                    // Curved line
+                    const midX = (from.x + to.x) / 2;
+                    const midY = (from.y + to.y) / 2;
+                    const dx = to.x - from.x;
+                    const dy = to.y - from.y;
+                    const len = Math.sqrt(dx*dx + dy*dy);
+                    const perpX = -dy / len * 40;
+                    const perpY = dx / len * 40;
+                    d = `M ${from.x} ${from.y} Q ${midX + perpX} ${midY + perpY} ${to.x} ${to.y}`;
+                } else {
+                    const dx = to.x - from.x;
+                    const dy = to.y - from.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const unitX = dx / dist;
+                    const unitY = dy / dist;
+                    const startX = from.x + unitX * 35;
+                    const startY = from.y + unitY * 35;
+                    const endX = to.x - unitX * 45;
+                    const endY = to.y - unitY * 45;
+                    d = `M ${startX} ${startY} L ${endX} ${endY}`;
+                }
+                path.setAttribute("d", d);
+                path.addEventListener('contextmenu', (e) => { e.preventDefault(); state.edges.splice(idx, 1); render(); });
+                edgesLayer.appendChild(path);
+
+                const midX = from === to ? from.x : (from.x + to.x) / 2;
+                const midY = from === to ? from.y - 70 : (from.y + to.y) / 2;
+                const foreign = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
+                foreign.setAttribute("x", midX - 20); foreign.setAttribute("y", midY - 10);
+                foreign.setAttribute("width", 40); foreign.setAttribute("height", 20);
+                foreign.innerHTML = `<input type="number" value="${edge.weight}" class="w-full h-full bg-zinc-800 text-white text-[10px] text-center border border-zinc-700 rounded focus:border-blue-500 outline-none" step="0.1" min="0">`;
+                foreign.querySelector('input').addEventListener('change', (e) => { edge.weight = parseFloat(e.target.value) || 0; });
+                edgesLayer.appendChild(foreign);
+            });
+
+            state.nodes.forEach(node => {
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("transform", `translate(${node.x}, ${node.y})`);
+                g.setAttribute("class", `node ${state.selectedNodeId === node.id ? 'selected' : ''}`);
+
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("r", 35);
+                const isCurrent = state.isPlaying && state.currentNodeId === node.id;
+                circle.setAttribute("fill", node.type === 'start' ? '#1e293b' : '#09090b');
+                circle.setAttribute("stroke", isCurrent ? '#3b82f6' : (state.selectedNodeId === node.id ? '#60a5fa' : (node.type === 'start' ? '#3b82f6' : '#27272a')));
+                circle.setAttribute("stroke-width", isCurrent ? 4 : (state.selectedNodeId === node.id ? 3 : 2));
+                
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("text-anchor", "middle"); text.setAttribute("dy", ".3em");
+                text.setAttribute("fill", "#fafafa"); text.setAttribute("font-size", "10px");
+                text.setAttribute("class", "pointer-events-none");
+                
+                if (node.type === 'start') {
+                    text.textContent = "START";
+                } else {
+                    const audio = state.audioFiles.find(a => a.id === node.audioId);
+                    text.textContent = audio ? audio.name.substring(0, 8) + '..' : 'Empty';
+                }
+
+                g.appendChild(circle);
+                g.appendChild(text);
+
+                g.addEventListener('pointerdown', (e) => {
+                    state.selectedNodeId = node.id;
+                    if (e.button === 0) {
+                        state.dragTarget = node;
+                        const p = getMousePos(e);
+                        state.dragOffset = { x: node.x - p.x, y: node.y - p.y };
+                    } else if (e.button === 2) {
+                        state.linkingFrom = node;
+                    }
+                    render();
+                    e.stopPropagation();
+                });
+                nodesLayer.appendChild(g);
+            });
+            updateViewport();
+        }
+
+        function updateViewport() {
+            viewport.setAttribute("transform", `translate(${state.camera.x}, ${state.camera.y}) scale(${state.camera.zoom})`);
+            document.getElementById('zoom-level').textContent = Math.round(state.camera.zoom * 100) + '%';
+        }
+
+        function getMousePos(e) {
+            const rect = svg.getBoundingClientRect();
+            return { x: (e.clientX - rect.left - state.camera.x) / state.camera.zoom, y: (e.clientY - rect.top - state.camera.y) / state.camera.zoom };
+        }
+
+        // Delete Key Handler
+        window.addEventListener('keydown', (e) => {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') {
+                if (state.selectedNodeId) {
+                    state.nodes = state.nodes.filter(n => n.id !== state.selectedNodeId);
+                    state.edges = state.edges.filter(e => e.from !== state.selectedNodeId && e.to !== state.selectedNodeId);
+                    state.selectedNodeId = null;
+                    render();
+                }
+            }
+        });
+
+        // Pointer handlers...
+        svg.addEventListener('pointerdown', (e) => { if (e.button === 0) { state.isDraggingCanvas = true; state.dragOffset = { x: e.clientX - state.camera.x, y: e.clientY - state.camera.y }; } });
+        window.addEventListener('pointermove', (e) => {
+            if (state.dragTarget) {
+                const p = getMousePos(e);
+                state.dragTarget.x = p.x + state.dragOffset.x;
+                state.dragTarget.y = p.y + state.dragOffset.y;
+                render();
+            } else if (state.isDraggingCanvas) {
+                state.camera.x = e.clientX - state.dragOffset.x;
+                state.camera.y = e.clientY - state.dragOffset.y;
+                updateViewport();
+            } else if (state.linkingFrom) {
+                const p = getMousePos(e);
+                tempEdge.classList.remove('hidden');
+                tempEdge.setAttribute("d", `M ${state.linkingFrom.x} ${state.linkingFrom.y} L ${p.x} ${p.y}`);
+            }
+        });
+        window.addEventListener('pointerup', (e) => {
+            if (state.linkingFrom) {
+                const p = getMousePos(e);
+                const targetNode = state.nodes.find(n => Math.sqrt((n.x-p.x)**2 + (n.y-p.y)**2) < 35);
+                if (targetNode) state.edges.push({ from: state.linkingFrom.id, to: targetNode.id, weight: 1.0 });
+                state.linkingFrom = null;
+                tempEdge.classList.add('hidden');
+                render();
+            }
+            state.dragTarget = null;
+            state.isDraggingCanvas = false;
+        });
+
+        svg.addEventListener('contextmenu', e => e.preventDefault());
+        svg.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const factor = Math.pow(1.1, -e.deltaY / 100);
+            const newZoom = Math.min(Math.max(state.camera.zoom * factor, 0.2), 3);
+            const rect = svg.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            state.camera.x = mouseX - (mouseX - state.camera.x) / state.camera.zoom * newZoom;
+            state.camera.y = mouseY - (mouseY - state.camera.y) / state.camera.zoom * newZoom;
+            state.camera.zoom = newZoom;
+            updateViewport();
+        }, { passive: false });
+
+        document.getElementById('zoom-in').onclick = () => { state.camera.zoom *= 1.2; updateViewport(); };
+        document.getElementById('zoom-out').onclick = () => { state.camera.zoom /= 1.2; updateViewport(); };
+        document.getElementById('zoom-reset').onclick = () => { state.camera = { x: 0, y: 0, zoom: 1 }; updateViewport(); };
+
+        const fileInput = document.getElementById('file-input');
+        const audioList = document.getElementById('audio-list');
+
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            for (const file of files) {
+                const id = crypto.randomUUID();
+                const buffer = await engine.decodeFile(file);
+                const asset = { id, name: file.name, buffer };
+                state.audioFiles.push(asset);
+                addAudioToList(asset);
+            }
+        });
+
+        function addAudioToList(asset) {
+            const item = document.createElement('div');
+            item.className = 'audio-list-item p-2 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition flex items-center justify-between group';
+            item.draggable = true;
+            item.dataset.id = asset.id;
+            item.dataset.type = 'audio';
+            
+            const content = document.createElement('div');
+            content.className = "flex items-center gap-2 overflow-hidden flex-1";
+            content.innerHTML = `
+                <button class="play-btn text-zinc-500 hover:text-green-500"><i data-lucide="play-circle" class="w-4 h-4"></i></button>
+                <span class="text-xs truncate cursor-text">${asset.name}</span>
+            `;
+
+            // Rename Feature
+            const nameSpan = content.querySelector('span');
+            nameSpan.ondblclick = () => {
+                const input = document.createElement('input');
+                input.value = asset.name;
+                input.className = "bg-zinc-800 text-white text-xs w-full px-1 border border-zinc-600 outline-none";
+                content.replaceChild(input, nameSpan);
+                input.focus();
+                input.onblur = () => {
+                    asset.name = input.value;
+                    nameSpan.textContent = asset.name;
+                    content.replaceChild(nameSpan, input);
+                    render();
+                };
+                input.onkeydown = (e) => { if(e.key === 'Enter') input.blur(); };
+            };
+
+            const delBtn = document.createElement('button');
+            delBtn.className = "opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-500 transition";
+            delBtn.innerHTML = `<i data-lucide="x" class="w-3 h-3"></i>`;
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                state.audioFiles = state.audioFiles.filter(a => a.id !== asset.id);
+                state.nodes = state.nodes.filter(n => n.audioId !== asset.id);
+                item.remove();
+                render();
+            };
+
+            item.appendChild(content);
+            item.appendChild(delBtn);
+            item.querySelector('.play-btn').onclick = (e) => { e.stopPropagation(); engine.playBuffer(asset.buffer, () => {}); };
+            
+            audioList.appendChild(item);
+            lucide.createIcons();
+        }
+
+        document.addEventListener('dragstart', (e) => { if (e.target.classList.contains('audio-list-item')) dragInfo = { type: e.target.dataset.type, id: e.target.dataset.id }; });
+        let dragInfo = null;
+        svg.addEventListener('dragover', (e) => e.preventDefault());
+        svg.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!dragInfo) return;
+            const p = getMousePos(e);
+            state.nodes.push({ id: crypto.randomUUID(), x: p.x, y: p.y, type: dragInfo.type, audioId: dragInfo.id || null });
+            dragInfo = null;
+            render();
+        });
+
+        async function playStep() {
+            if (!state.isPlaying) return;
+            const currentNode = state.nodes.find(n => n.id === state.currentNodeId);
+            if (!currentNode) { stopPlayback(); return; }
+            if (currentNode.type === 'start') { transitionToNext(); return; }
+            const audio = state.audioFiles.find(a => a.id === currentNode.audioId);
+            if (!audio) { transitionToNext(); return; }
+            updateStatus(`Playing: ${audio.name}`);
+            engine.playBuffer(audio.buffer, () => { transitionToNext(); });
+        }
+
+        function transitionToNext() {
+            if (!state.isPlaying) return;
+            const possibleEdges = state.edges.filter(e => e.from === state.currentNodeId);
+            if (possibleEdges.length === 0) { stopPlayback(); return; }
+            const totalWeight = possibleEdges.reduce((sum, e) => sum + e.weight, 0);
+            if (totalWeight <= 0) { stopPlayback(); return; }
+            let r = Math.random() * totalWeight;
+            let selectedEdge = possibleEdges[0];
+            for (const edge of possibleEdges) { r -= edge.weight; if (r <= 0) { selectedEdge = edge; break; } }
+            state.currentNodeId = selectedEdge.to;
+            render();
+            playStep();
+        }
+
+        function startPlayback() {
+            const startNode = state.nodes.find(n => n.type === 'start');
+            if (!startNode) return;
+            state.isPlaying = true;
+            engine.isPlaying = true;
+            state.currentNodeId = startNode.id;
+            document.getElementById('btn-play').classList.add('bg-green-500/20');
+            render();
+            playStep();
+        }
+
+        function stopPlayback() {
+            state.isPlaying = false;
+            engine.stop();
+            state.currentNodeId = null;
+            document.getElementById('btn-play').classList.remove('bg-green-500/20');
+            updateStatus("Ready");
+            render();
+        }
+
+        document.getElementById('btn-play').onclick = startPlayback;
+        document.getElementById('btn-stop').onclick = stopPlayback;
+        render();
+    </script>
+</body>
+</html>
